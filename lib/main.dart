@@ -74,8 +74,8 @@ class GameBoard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(info),
-          SizedBox(height: 32),
-          Text('You are player'),
+          const SizedBox(height: 32),
+          const Text('You are player'),
           Text(
             playerOne ? "1" : "2",
             style: const TextStyle(fontSize: 124),

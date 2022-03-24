@@ -18,15 +18,15 @@ class BuoyantTwoPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final halfOpenedOrientation = HalfOpenedOrientation.of(context);
 
-    ///      Rotation    flatOnTable     uprightVertical
-    ///  cameraOnLeft    left            right
-    ///  cameraOnTop     upsideDown      normal
-    ///  cameraOnBottom  normal          upsideDown
+    //      Rotation    flatOnTable     uprightVertical
+    //  cameraOnLeft    left            right
+    //  cameraOnTop     upsideDown      normal
+    //  cameraOnBottom  normal          upsideDown
 
-    ///    PanelOrder    flatOnTable     uprightVertical
-    ///  cameraOnLeft    horiz. ltr      horiz. rtl
-    ///  cameraOnTop     vertic. up      vertic. down
-    ///  cameraOnBottom  vertic. down    vertic up
+    //    PanelOrder    flatOnTable     uprightVertical
+    //  cameraOnLeft    horiz. ltr      horiz. rtl
+    //  cameraOnTop     vertic. up      vertic. down
+    //  cameraOnBottom  vertic. down    vertic up
 
     late SquareRotation rotation = SquareRotation.normal;
     late VerticalDirection verticalDirection = VerticalDirection.down;

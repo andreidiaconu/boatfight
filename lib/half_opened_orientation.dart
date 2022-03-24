@@ -24,11 +24,22 @@ class HalfOpenedOrientation extends StatefulWidget {
 }
 
 class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
+  /// Interval to consider things are unclear. Should be below 1.0
+  static const double UNDECIDED_THRESHOLD = 0.9;
+
+  /// If device is halfOpened. If not, we cannot decide the [screenWithCameraPosition]
   late bool halfOpened;
-  ScreenWithCameraPosition screenWithCameraPosition =
-      ScreenWithCameraPosition.uprightVertical;
+
+  /// Position of the screen carrying the camera
+  ScreenWithCameraPosition screenWithCameraPosition = ScreenWithCameraPosition.uprightVertical;
+
+  /// If the [screenWithCameraPosition] is decisive or in-between positions
   bool screenWithCameraPositionUndecided = true;
+
+  /// he orientation of the app relative to the hardware
   LayoutOrientation layoutOrientation = LayoutOrientation.cameraOnLeft;
+
+  /// OS we are running on. Adaptations are needed for the web version. TBD
   TargetPlatform platform = TargetPlatform.android;
 
   @override
@@ -49,9 +60,6 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
   }
 
   void onAcceleratorEvent(AccelerometerEvent event) {
-    // Interval to consider things are unclear. Should be below 0.9
-    const double UNDECIDED_TRESHOLD = 0.7;
-
     // Will be below 0.5 for uprightVertical and above 0.5 for flatOnTable
     final double zPosition = (event.z - 3.0) / (9.5 - 3.0);
 
@@ -64,7 +72,7 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
     final double position = zPosition - xPosition;
 
     final undecided =
-        position > -UNDECIDED_TRESHOLD && position < UNDECIDED_TRESHOLD;
+        position > -UNDECIDED_THRESHOLD && position < UNDECIDED_THRESHOLD;
     late ScreenWithCameraPosition latestCameraPosition;
 
     if (position < 0) {
