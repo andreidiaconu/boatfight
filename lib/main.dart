@@ -56,9 +56,7 @@ class BoatGame extends StatelessWidget {
             'Have the device in laptop shape. Players take turns flipping the device to their side.'),
       ),
     );
-    bool undecided = halfOpenedOrientation.screenWithCameraPosition ==
-        ScreenWithCameraPosition.undecidedUprightVertical || halfOpenedOrientation.screenWithCameraPosition ==
-        ScreenWithCameraPosition.undecidedFlatOnTable;
+    bool undecided = halfOpenedOrientation.screenWithCameraPositionUndecided;
     return BuoyantTwoPane(
       topPane: undecided
           ? Transform.rotate(
@@ -102,7 +100,6 @@ class BuoyantTwoPane extends StatelessWidget {
 
     switch (halfOpenedOrientation.screenWithCameraPosition) {
       case ScreenWithCameraPosition.flatOnTable:
-      case ScreenWithCameraPosition.undecidedFlatOnTable:
         switch (halfOpenedOrientation.layoutOrientation) {
           case LayoutOrientation.cameraOnLeft:
             rotation = SquareRotation.left;
@@ -119,7 +116,6 @@ class BuoyantTwoPane extends StatelessWidget {
         }
         break;
       case ScreenWithCameraPosition.uprightVertical:
-      case ScreenWithCameraPosition.undecidedUprightVertical:
         switch (halfOpenedOrientation.layoutOrientation) {
           case LayoutOrientation.cameraOnLeft:
             rotation = SquareRotation.right;
@@ -249,15 +245,12 @@ class HalfOpenedOrientation extends StatefulWidget {
 }
 
 class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
-  static const double MOVEMENT_TRESHOLD = 2;
-  static const int MOVEMENT_DEBOUNCE_MS = 250;
   late bool isSpanned;
   ScreenWithCameraPosition screenWithCameraPosition =
-      ScreenWithCameraPosition.undecidedUprightVertical;
+      ScreenWithCameraPosition.uprightVertical;
+  bool screenWithCameraPositionUndecided = true;
   LayoutOrientation layoutOrientation = LayoutOrientation.cameraOnLeft;
   TargetPlatform platform = TargetPlatform.android;
-  AccelerometerEvent lastAcceleration = AccelerometerEvent(0, 0, 0);
-  DateTime ignoreAccelerationUntil = DateTime.now();
 
 
   @override
@@ -279,42 +272,30 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
   }
 
   void onAcceleratorEvent(AccelerometerEvent event) {
-    if (DateTime.now().isBefore(ignoreAccelerationUntil)) {
-      return;
-    }
+    const double UNDECIDED_TRESHOLD = 0.7;
+    // Will be below 0.5 for uprightVertical and above 0.5 for flatOnTable
+    final double zPosition = (event.z - 3.0) / (9.5 - 3.0);
+    // Will be below 0.5 for flatOnTable and above 0.5 for uprightVertical
+    final double xPosition = event.x / 9.5;
+    // Will be below 0 for uprightVertical and above 0 for flatOnTable
+    // Between -0.5 and 0.5 we consider it undecided. -1 ad +1 are the decisive values
+    final double position = zPosition - xPosition;
 
-    final movement = (event.x - lastAcceleration.x).abs() +
-        // (event.y - lastAcceleration.y).abs() +
-        (event.z - lastAcceleration.z).abs();
-    lastAcceleration = event;
+    print("X = ${event.x.toStringAsFixed(2)} and XP = ${xPosition.toStringAsFixed(2)} and P = ${position.toStringAsFixed(2)}");
 
-    print("Tresholds are $MOVEMENT_TRESHOLD and $MOVEMENT_DEBOUNCE_MS and movement is ${movement.toStringAsFixed(2)} and X = ${event.x.toStringAsFixed(2)} and Z = ${event.z.toStringAsFixed(2)}");
-
-    final cameraUp = event.x > 8;
-    final cameraDown = event.z > 8;
-    final undecided = movement > MOVEMENT_TRESHOLD || (!cameraUp && !cameraDown);
-
+    final undecided = position > -UNDECIDED_TRESHOLD && position < UNDECIDED_TRESHOLD;
     late ScreenWithCameraPosition latestCameraPosition;
 
-    if (undecided && event.x > event.z) {
-      latestCameraPosition = ScreenWithCameraPosition.undecidedUprightVertical;
-    } else if (undecided && event.x <= event.z) {
-      latestCameraPosition = ScreenWithCameraPosition.undecidedFlatOnTable;
-    } else if (event.x > event.z) {
+    if (position < 0) {
       latestCameraPosition = ScreenWithCameraPosition.uprightVertical;
-    } else if (event.x <= event.z) {
-      latestCameraPosition = ScreenWithCameraPosition.flatOnTable;
     } else {
-      latestCameraPosition = ScreenWithCameraPosition.undecidedUprightVertical;
+      latestCameraPosition = ScreenWithCameraPosition.flatOnTable;
     }
 
-    if (undecided) {
-      ignoreAccelerationUntil = DateTime.now().add(const Duration(milliseconds: MOVEMENT_DEBOUNCE_MS));
-    }
-
-    if (latestCameraPosition != screenWithCameraPosition) {
+    if ((latestCameraPosition != screenWithCameraPosition) || (screenWithCameraPositionUndecided != undecided)) {
       setState(() {
         screenWithCameraPosition = latestCameraPosition;
+        screenWithCameraPositionUndecided = undecided;
       });
     }
   }
@@ -361,6 +342,7 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
     HalfOpenedOrientationData data = HalfOpenedOrientationData(
       screenWithCameraPosition: screenWithCameraPosition,
       layoutOrientation: layoutOrientation,
+      screenWithCameraPositionUndecided: screenWithCameraPositionUndecided,
     );
     // final child = Material(
     //   child: Padding(
@@ -391,10 +373,12 @@ class _HalfOpenedOrientation extends InheritedWidget {
 class HalfOpenedOrientationData {
   final ScreenWithCameraPosition screenWithCameraPosition;
   final LayoutOrientation layoutOrientation;
+  final bool screenWithCameraPositionUndecided;
 
   HalfOpenedOrientationData({
     required this.screenWithCameraPosition,
     required this.layoutOrientation,
+    required this.screenWithCameraPositionUndecided,
   });
 
   @override
@@ -403,11 +387,15 @@ class HalfOpenedOrientationData {
       other is HalfOpenedOrientationData &&
           runtimeType == other.runtimeType &&
           screenWithCameraPosition == other.screenWithCameraPosition &&
-          layoutOrientation == other.layoutOrientation;
+          layoutOrientation == other.layoutOrientation &&
+          screenWithCameraPositionUndecided ==
+              other.screenWithCameraPositionUndecided;
 
   @override
   int get hashCode =>
-      screenWithCameraPosition.hashCode ^ layoutOrientation.hashCode;
+      screenWithCameraPosition.hashCode ^
+      layoutOrientation.hashCode ^
+      screenWithCameraPositionUndecided.hashCode;
 }
 
 /// Describes the position of the screen that has the camera on it (2nd screen),
@@ -418,30 +406,6 @@ enum ScreenWithCameraPosition {
 
   /// The screen carying the camera is upright. The other screen is flat on the table.
   uprightVertical,
-
-  /// The setup is unclear but it is likely to be [flatOnTable], which can
-  /// happen when:
-  ///
-  ///   * the angle of the hinge is too wide, making the posture flat or not
-  ///   "closed" enough for the purpose of this game. Display feature posture is
-  ///   not used, but the angle of the hinge is used directly for finer control.
-  ///   * the accelerometer reports unclear data, meaning that none of the two
-  ///   screens is a clear candidate for the being considered flat on the table.
-  ///   * accelerometer data is in "movement", meaning that the screens are
-  ///   being manipulated and moved around.
-  undecidedFlatOnTable,
-
-  /// The setup is unclear but it is likely to be [uprightVertical], which can
-  /// happen when:
-  ///
-  ///   * the angle of the hinge is too wide, making the posture flat or not
-  ///   "closed" enough for the purpose of this game. Display feature posture is
-  ///   not used, but the angle of the hinge is used directly for finer control.
-  ///   * the accelerometer reports unclear data, meaning that none of the two
-  ///   screens is a clear candidate for the being considered flat on the table.
-  ///   * accelerometer data is in "movement", meaning that the screens are
-  ///   being manipulated and moved around.
-  undecidedUprightVertical,
 }
 
 /// Orientation of the layout in relation to the hardware screens.
