@@ -1,8 +1,7 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/widgets.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
@@ -42,12 +41,13 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
   /// OS we are running on. Adaptations are needed for the web version. TBD
   TargetPlatform platform = TargetPlatform.android;
 
+  /// Substiption to accelerometer events. Needs to be cleaned up on disposal.
+  StreamSubscription? accelerometerSubscription;
+
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      accelerometerEvents.listen(onAcceleratorEvent);
-    });
+    accelerometerSubscription = accelerometerEvents.listen(onAcceleratorEvent);
   }
 
   @override
@@ -57,6 +57,12 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
     displayFeature.state == DisplayFeatureState.postureHalfOpened);
     checkNativeOrientationChange();
     super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    accelerometerSubscription?.cancel();
+    super.dispose();
   }
 
   void onAcceleratorEvent(AccelerometerEvent event) {
