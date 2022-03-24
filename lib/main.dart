@@ -33,30 +33,19 @@ class BoatGame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final halfOpenedOrientation = HalfOpenedOrientation.of(context);
-    final player = halfOpenedOrientation.screenWithCameraPosition ==
-            ScreenWithCameraPosition.uprightVertical
-        ? "ONE"
-        : "TWO";
-    final yourBoard = Container(
-      color: Colors.green[300],
-      child: Center(
-        child: Text('This is your board. You are player $player'),
-      ),
-    );
-    final opponentBoard = Container(
-      color: Colors.blue[300],
-      child: Center(
-        child: Text('This is your opponent\'s board.'),
-      ),
-    );
-    final flipInstructions = Container(
-      color: Colors.teal[300],
-      child: Center(
-        child: Text(
-            'Have the device in laptop shape. Players take turns flipping the device to their side.'),
-      ),
-    );
     bool undecided = halfOpenedOrientation.screenWithCameraPositionUndecided;
+    final playerOne = halfOpenedOrientation.screenWithCameraPosition ==
+        ScreenWithCameraPosition.uprightVertical;
+
+    final yourBoard = GameBoard(playerOne: playerOne, info: 'This is your board. It always sits at the top',);
+    final opponentBoard = GameBoard(playerOne: playerOne, info: 'This is your opponent\'s board. It always sits at the bottom',);
+    const flipInstructions = Material(
+      color: Colors.black12,
+      child: Center(
+        child: Text('Place the device on a table in laptop mode.'),
+      ),
+    );
+
     return BuoyantTwoPane(
       topPane: undecided
           ? Transform.rotate(
@@ -65,6 +54,37 @@ class BoatGame extends StatelessWidget {
             )
           : yourBoard,
       bottomPane: undecided ? flipInstructions : opponentBoard,
+    );
+  }
+}
+
+class GameBoard extends StatelessWidget {
+  const GameBoard({
+    Key? key,
+    required this.playerOne,
+    required this.info,
+  }) : super(key: key);
+
+  final bool playerOne;
+  final String info;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: playerOne ? Colors.blue[300] : Colors.orange[300],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(info),
+          SizedBox(height: 32),
+          Text('You are player'),
+          Text(
+            playerOne ? "1" : "2",
+            style: const TextStyle(fontSize: 124),
+          )
+        ],
+      ),
     );
   }
 }
@@ -245,13 +265,12 @@ class HalfOpenedOrientation extends StatefulWidget {
 }
 
 class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
-  late bool isSpanned;
+  late bool halfOpened;
   ScreenWithCameraPosition screenWithCameraPosition =
       ScreenWithCameraPosition.uprightVertical;
   bool screenWithCameraPositionUndecided = true;
   LayoutOrientation layoutOrientation = LayoutOrientation.cameraOnLeft;
   TargetPlatform platform = TargetPlatform.android;
-
 
   @override
   void initState() {
@@ -264,26 +283,29 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
   @override
   void didChangeDependencies() {
     platform = Theme.of(context).platform;
-    isSpanned = MediaQuery.of(context).displayFeatures.any((displayFeature) =>
-        displayFeature.type == DisplayFeatureType.hinge ||
+    halfOpened = MediaQuery.of(context).displayFeatures.any((displayFeature) =>
         displayFeature.state == DisplayFeatureState.postureHalfOpened);
     checkNativeOrientationChange();
     super.didChangeDependencies();
   }
 
   void onAcceleratorEvent(AccelerometerEvent event) {
+    // Interval to consider things are unclear. Should be below 0.9
     const double UNDECIDED_TRESHOLD = 0.7;
+
     // Will be below 0.5 for uprightVertical and above 0.5 for flatOnTable
     final double zPosition = (event.z - 3.0) / (9.5 - 3.0);
+
     // Will be below 0.5 for flatOnTable and above 0.5 for uprightVertical
     final double xPosition = event.x / 9.5;
+
     // Will be below 0 for uprightVertical and above 0 for flatOnTable
-    // Between -0.5 and 0.5 we consider it undecided. -1 ad +1 are the decisive values
+    // Between -UNDECIDED_TRESHOLD and UNDECIDED_TRESHOLD we consider it
+    // undecided. -1 ad +1 are the decisive values
     final double position = zPosition - xPosition;
 
-    print("X = ${event.x.toStringAsFixed(2)} and XP = ${xPosition.toStringAsFixed(2)} and P = ${position.toStringAsFixed(2)}");
-
-    final undecided = position > -UNDECIDED_TRESHOLD && position < UNDECIDED_TRESHOLD;
+    final undecided =
+        position > -UNDECIDED_TRESHOLD && position < UNDECIDED_TRESHOLD;
     late ScreenWithCameraPosition latestCameraPosition;
 
     if (position < 0) {
@@ -292,7 +314,8 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
       latestCameraPosition = ScreenWithCameraPosition.flatOnTable;
     }
 
-    if ((latestCameraPosition != screenWithCameraPosition) || (screenWithCameraPositionUndecided != undecided)) {
+    if ((latestCameraPosition != screenWithCameraPosition) ||
+        (screenWithCameraPositionUndecided != undecided)) {
       setState(() {
         screenWithCameraPosition = latestCameraPosition;
         screenWithCameraPositionUndecided = undecided;
@@ -342,7 +365,8 @@ class _HalfOpenedOrientationState extends State<HalfOpenedOrientation> {
     HalfOpenedOrientationData data = HalfOpenedOrientationData(
       screenWithCameraPosition: screenWithCameraPosition,
       layoutOrientation: layoutOrientation,
-      screenWithCameraPositionUndecided: screenWithCameraPositionUndecided,
+      screenWithCameraPositionUndecided:
+          !halfOpened || screenWithCameraPositionUndecided,
     );
     // final child = Material(
     //   child: Padding(
