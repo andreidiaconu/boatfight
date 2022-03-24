@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:dual_screen/dual_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -31,15 +32,16 @@ class _HingeHapticsState extends State<HingeHaptics> {
 
   // Position of "teeth" on the hinge
   late List<double> teethPosition;
+  double lastHitTooth = 0;
 
   @override
   void initState() {
     super.initState();
-    const teeth = 36;
+    const teeth = 20;
     const toothSize = 360 / teeth;
     teethPosition = List.generate(teeth, (index) => index * toothSize);
     hingeSubscription = DualScreenInfo.hingeAngleEvents.listen(onHingeAngleChange);
-    interpolator = Timer.periodic(const Duration(milliseconds: 5), (timer) {interpolate();});
+    interpolator = Timer.periodic(const Duration(milliseconds: 3), (timer) {interpolate();});
   }
 
   void interpolate() {
@@ -64,11 +66,20 @@ class _HingeHapticsState extends State<HingeHaptics> {
   }
 
   void interpretUsedAngle(double angle) {
-    bool toothHit = teethPosition.any((tooth) => (tooth < lastUsedAngle && tooth > angle) || (tooth < angle && tooth > lastUsedAngle));
-    lastUsedAngle = angle;
-    if (toothHit) {
-      HapticFeedback.heavyImpact();
+
+    for (int i = 0; i < teethPosition.length; i++) {
+      final tooth = teethPosition[i];
+      if ((tooth < lastUsedAngle && tooth > angle)
+          || (tooth < angle && tooth > lastUsedAngle)) {
+        if (lastHitTooth != tooth) {
+          HapticFeedback.lightImpact();
+          // Feedback.forTap(context);
+          lastHitTooth = tooth;
+        }
+        break;
+      }
     }
+    lastUsedAngle = angle;
   }
 
   void onHingeAngleChange(double angle) async {
