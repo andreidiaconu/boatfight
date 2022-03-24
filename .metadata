@@ -1,0 +1,10 @@
+# This file tracks properties of this Flutter project.
+# Used by Flutter tool to assess capabilities and perform upgrades etc.
+#
+# This file should be version controlled and should not be manually edited.
+
+version:
+  revision: 5f4c05ae20a45b52c7b401b393fefae1c98c61c4
+  channel: foldable_support_popup_menu
+
+project_type: app
